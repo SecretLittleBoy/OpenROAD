@@ -435,26 +435,22 @@ void SemiLegalizer::adjustRowCapacity()
 int SemiLegalizer::degreeOfExcess(const std::vector<odb::dbInst*>& row)
 {
   int rowWidth = (*targetBlock_->getRows().begin())->getBBox().dx();
-
-  int totalWidth = 0;
-  for (auto inst : row) {
-    totalWidth += inst->getMaster()->getWidth();
-  }
-
-  if (totalWidth > rowWidth) {
-    return totalWidth - rowWidth;
-  }
-  return 0;
+  int totalWidth = std::accumulate(
+      row.begin(), row.end(), 0, [](int sum, odb::dbInst* inst) {
+        return sum + inst->getMaster()->getWidth();
+      });
+  return totalWidth > rowWidth ? totalWidth - rowWidth : 0;
 }
 bool SemiLegalizer::utilCheck()
 {
-  int64_t sumArea = 0;
-  for (auto inst : targetBlock_->getInsts()) {
-    sumArea += inst->getMaster()->getWidth() * inst->getMaster()->getHeight();
-  }
-  if (sumArea > targetBlock_->getDieArea().area()) {
-    return false;
-  }
-  return true;
+  int64_t sumArea = std::accumulate(
+      targetBlock_->getInsts().begin(),
+      targetBlock_->getInsts().end(),
+      0,
+      [](int64_t sum, odb::dbInst* inst) {
+        return sum
+               + inst->getMaster()->getWidth() * inst->getMaster()->getHeight();
+      });
+  return sumArea <= targetBlock_->getDieArea().area();
 }
 }  // namespace mdm
