@@ -407,7 +407,7 @@ void SemiLegalizer::adjustRowCapacity()
 
     int rowClusterMaxIdx = static_cast<int>(rowClusters.size());
     int startIdx = direction == UPWARD ? 0 : rowClusterMaxIdx - 1;
-    int endIdx = direction == UPWARD ? rowClusterMaxIdx : -1;
+    int endIdx = direction == UPWARD ? rowClusterMaxIdx - 1 : 0;
     int step = direction == UPWARD ? 1 : -1;
 
     for (int i = startIdx; direction == UPWARD ? (i < endIdx) : (i > endIdx);
@@ -420,27 +420,16 @@ void SemiLegalizer::adjustRowCapacity()
       uint reducedWidth = 0;
       while (excess > reducedWidth) {
         auto smallestInst = rowCluster.at(0);
-        rowCluster.erase(
-            std::remove(rowCluster.begin(), rowCluster.end(), smallestInst),
-            rowCluster.end());
-
+        rowCluster.erase(rowCluster.begin());
         int targetRowIdx;
-        if (direction == UPWARD) {
-          targetRowIdx = (i == rowClusters.size() - 1) ? i - 1 : i + 1;
-        } else {
-          targetRowIdx = (i == 0) ? i + 1 : i - 1;
-        }
+        targetRowIdx = direction == UPWARD ? i + 1 : i - 1;
         rowClusters.at(targetRowIdx).push_back(smallestInst);
         smallestInst->setLocation(smallestInst->getLocation().x(),
                                   targetRowIdx * rowHeight + yMin);
         reducedWidth += smallestInst->getMaster()->getWidth();
       }
     }
-    if (direction == UPWARD) {
-      direction = DOWNWARD;
-    } else {
-      direction = UPWARD;
-    }
+    direction = direction == UPWARD ? DOWNWARD : UPWARD;
   }
 }
 int SemiLegalizer::degreeOfExcess(const std::vector<odb::dbInst*>& row)
