@@ -82,7 +82,7 @@ void SemiLegalizer::runAbacus(odb::dbBlock* block)
   targetBlock_ = block;
 
   std::multiset<odb::dbInst*,
-           std::function<bool(const odb::dbInst*, const odb::dbInst*)>>
+                std::function<bool(const odb::dbInst*, const odb::dbInst*)>>
       instSet(targetBlock_->getInsts().begin(),
               targetBlock_->getInsts().end(),
               [](const odb::dbInst* a, const odb::dbInst* b) {
@@ -90,22 +90,21 @@ void SemiLegalizer::runAbacus(odb::dbBlock* block)
               });
   std::vector<instInRow> rowSet(targetBlock_->getRows().size());
   int yMin = (*targetBlock_->getRows().begin())->getBBox().yMin();
-  auto rowHeight = (*targetBlock_->getRows().begin())->getBBox().dy();
+  int rowHeight = (*targetBlock_->getRows().begin())->getBBox().dy();
   for (auto inst : instSet) {
     int CostBest = std::numeric_limits<int>::max();
     int rowBest = 0;  // usage: rowSet.at(rowBest);
     std::pair<int, int> originalLocation
         = {inst->getLocation().x(), inst->getLocation().y()};
-    auto instY = inst->getLocation().y();
-    int nextSearchDownRow = (instY - yMin) / rowHeight;
+    int nextSearchDownRow = (originalLocation.second - yMin) / rowHeight;
     int nextSearchUpRow = nextSearchDownRow + 1;
     while (nextSearchUpRow < rowSet.size() || nextSearchDownRow >= 0) {
       if (nextSearchDownRow < 0
           || (abs(yMin + rowHeight * nextSearchUpRow - originalLocation.first)
                   < abs(yMin + rowHeight * nextSearchDownRow
                         - originalLocation.first)
-              && nextSearchUpRow < rowSet.size())) {
-        if (abs(rowHeight * nextSearchUpRow - originalLocation.second)
+              && nextSearchUpRow < rowSet.size())) {  // search up
+        if (abs(yMin + rowHeight * nextSearchUpRow - originalLocation.second)
             > CostBest) {
           nextSearchUpRow = rowSet.size();
           continue;
@@ -128,7 +127,7 @@ void SemiLegalizer::runAbacus(odb::dbBlock* block)
         }
         rowSet.at(nextSearchUpRow).pop_back();
         nextSearchUpRow++;
-      } else {
+      } else {  // search down
         if (abs(yMin + rowHeight * nextSearchDownRow - originalLocation.second)
             > CostBest) {
           nextSearchDownRow = -1;
