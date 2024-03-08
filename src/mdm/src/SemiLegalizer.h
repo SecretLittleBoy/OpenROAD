@@ -36,6 +36,7 @@
 #include <utility>
 #include <vector>
 #include <numeric>
+#include <set>
 
 #include "odb/db.h"
 

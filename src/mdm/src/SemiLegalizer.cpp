@@ -64,13 +64,102 @@ void SemiLegalizer::runAbacus(char* targetDieChar, bool topHierDie)
 void SemiLegalizer::runAbacus(odb::dbBlock* block)
 {
   targetBlock_ = block;
-  std::vector<instInRow> rowSet;
+  // std::vector<instInRow> rowSet;
 
-  adjustRowCapacity();
-  initRows(&rowSet);
+  // adjustRowCapacity();
+  // initRows(&rowSet);
 
-  for (const auto& row : rowSet) {
-    placeRow(row);
+  // for (const auto& row : rowSet) {
+  //   placeRow(row);
+  // }
+  /*
+    Sort cells according to x - position;
+    1 foreach cell i do
+    2   cbest ← ∞;
+    3   for each row r do
+    4     Insert cell i into row r;
+    5     PlaceRow r(trial);
+    6     Determine cost c;
+    7     if c < cbest then cbest = c, rbest = r;
+    8     Remove cell i from row r;
+    9   end
+    10  Insert Cell i to row rbest;
+    11  PlaceRow rbest(final);
+    12 end
+  */
+  std::set<odb::dbInst*,
+           std::function<bool(const odb::dbInst*, const odb::dbInst*)>>
+      instSet(targetBlock_->getInsts().begin(),
+              targetBlock_->getInsts().end(),
+              [](const odb::dbInst* a, const odb::dbInst* b) {
+                return a->getLocation().x() < b->getLocation().x();
+              });
+  std::vector<instInRow> rowSet(targetBlock_->getRows().size());
+  int yMin = (*targetBlock_->getRows().begin())->getBBox().yMin();
+  auto rowHeight = (*targetBlock_->getRows().begin())->getBBox().dy();
+  int sizeOfInstSet = instSet.size();  // for debug
+  for (auto inst : instSet) {
+    int CostBest = std::numeric_limits<int>::max();
+    int rowBest = 0;  // usage: rowSet.at(rowBest);
+    std::pair<int, int> originalLocation
+        = {inst->getLocation().x(), inst->getLocation().y()};
+    auto instY = inst->getLocation().y();
+    int nextRowSearchDown = (instY - yMin) / rowHeight;
+    int nextRowSearchUp = nextRowSearchDown + 1;
+    while (nextRowSearchUp < rowSet.size() || nextRowSearchDown >= 0) {
+      std::cout << "nextRowSearchUp: " << nextRowSearchUp
+                << ", nextRowSearchDown: " << nextRowSearchDown << std::endl;
+      if (abs(yMin + rowHeight * nextRowSearchUp - originalLocation.first)
+              < abs(yMin + rowHeight * nextRowSearchDown
+                    - originalLocation.first)
+          && nextRowSearchUp < rowSet.size()) {
+        if (abs(rowHeight * nextRowSearchUp - originalLocation.second)
+            > CostBest) {
+          nextRowSearchUp = rowSet.size();
+          continue;
+        }
+        inst->setLocation(originalLocation.first, rowHeight * nextRowSearchUp);
+        rowSet.at(nextRowSearchUp).push_back(inst);
+        placeRow(rowSet.at(nextRowSearchUp));
+        int cost
+            = std::abs(inst->getLocation().x() - originalLocation.first)
+              + std::abs(inst->getLocation().y() - originalLocation.second);
+        if (cost < CostBest) {
+          CostBest = cost;
+          rowBest = nextRowSearchUp;
+        }
+        rowSet.at(nextRowSearchUp).pop_back();
+        nextRowSearchUp++;
+      } else {
+        if (abs(rowHeight * nextRowSearchDown - originalLocation.second)
+            > CostBest) {
+          nextRowSearchDown = -1;
+          continue;
+        }
+        inst->setLocation(originalLocation.first,
+                          rowHeight * nextRowSearchDown);
+        rowSet.at(nextRowSearchDown).push_back(inst);
+        placeRow(rowSet.at(nextRowSearchDown));
+        int cost
+            = std::abs(inst->getLocation().x() - originalLocation.first)
+              + std::abs(inst->getLocation().y() - originalLocation.second);
+        if (cost < CostBest) {
+          CostBest = cost;
+          rowBest = nextRowSearchDown;
+        }
+        rowSet.at(nextRowSearchDown).pop_back();
+        nextRowSearchDown--;
+      }
+    }
+    inst->setLocation(originalLocation.first, rowHeight * rowBest);
+    rowSet.at(rowBest).push_back(inst);
+    placeRow(rowSet.at(rowBest));
+    // for debug
+    static int count = 0;
+    count++;
+    std::cout << "round " << count << " of " << sizeOfInstSet << " ended"
+              << std::endl;
+    // end of debug
   }
 }
 void SemiLegalizer::initRows(std::vector<instInRow>* rowSet)
