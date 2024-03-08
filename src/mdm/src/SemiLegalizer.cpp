@@ -61,33 +61,27 @@ void SemiLegalizer::runAbacus(char* targetDieChar, bool topHierDie)
     }
   }
 }
+
+/*
+  Sort cells according to x - position;
+  1 foreach cell i do
+  2   cbest ← ∞;
+  3   for each row r do
+  4     Insert cell i into row r;
+  5     PlaceRow r(trial);
+  6     Determine cost c;
+  7     if c < cbest then cbest = c, rbest = r;
+  8     Remove cell i from row r;
+  9   end
+  10  Insert Cell i to row rbest;
+  11  PlaceRow rbest(final);
+  12 end
+*/
 void SemiLegalizer::runAbacus(odb::dbBlock* block)
 {
   targetBlock_ = block;
-  // std::vector<instInRow> rowSet;
 
-  // adjustRowCapacity();
-  // initRows(&rowSet);
-
-  // for (const auto& row : rowSet) {
-  //   placeRow(row);
-  // }
-  /*
-    Sort cells according to x - position;
-    1 foreach cell i do
-    2   cbest ← ∞;
-    3   for each row r do
-    4     Insert cell i into row r;
-    5     PlaceRow r(trial);
-    6     Determine cost c;
-    7     if c < cbest then cbest = c, rbest = r;
-    8     Remove cell i from row r;
-    9   end
-    10  Insert Cell i to row rbest;
-    11  PlaceRow rbest(final);
-    12 end
-  */
-  std::set<odb::dbInst*,
+  std::multiset<odb::dbInst*,
            std::function<bool(const odb::dbInst*, const odb::dbInst*)>>
       instSet(targetBlock_->getInsts().begin(),
               targetBlock_->getInsts().end(),
@@ -163,27 +157,6 @@ void SemiLegalizer::runAbacus(odb::dbBlock* block)
     inst->setLocation(originalLocation.first, yMin + rowHeight * rowBest);
     rowSet.at(rowBest).push_back(inst);
     placeRow(rowSet.at(rowBest));
-  }
-}
-void SemiLegalizer::initRows(std::vector<instInRow>* rowSet)
-{
-  auto numRows = targetBlock_->getRows().size();
-  auto rowHeight = (*targetBlock_->getRows().begin())->getBBox().dy();
-  rowSet->resize(numRows);
-  int yMin = (*targetBlock_->getRows().begin())->getBBox().yMin();
-  for (auto inst : targetBlock_->getInsts()) {
-    auto instY = inst->getLocation().y() + inst->getMaster()->getHeight() / 2;
-    int rowIdx = (instY - yMin) / rowHeight;
-    if (rowIdx >= 0 && rowIdx < numRows) {
-      rowSet->at(rowIdx).push_back(inst);
-    }
-    inst->setLocation(inst->getLocation().x(), rowIdx * rowHeight);
-  }
-  for (auto& row : *rowSet) {
-    std::sort(
-        row.begin(), row.end(), [](const odb::dbInst* a, const odb::dbInst* b) {
-          return a->getLocation().x() < b->getLocation().x();
-        });
   }
 }
 
