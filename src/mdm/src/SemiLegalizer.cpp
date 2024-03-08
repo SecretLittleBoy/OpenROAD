@@ -109,16 +109,18 @@ void SemiLegalizer::runAbacus(odb::dbBlock* block)
     while (nextRowSearchUp < rowSet.size() || nextRowSearchDown >= 0) {
       std::cout << "nextRowSearchUp: " << nextRowSearchUp
                 << ", nextRowSearchDown: " << nextRowSearchDown << std::endl;
-      if (abs(yMin + rowHeight * nextRowSearchUp - originalLocation.first)
-              < abs(yMin + rowHeight * nextRowSearchDown
-                    - originalLocation.first)
-          && nextRowSearchUp < rowSet.size()) {
+      if (nextRowSearchDown < 0
+          || (abs(yMin + rowHeight * nextRowSearchUp - originalLocation.first)
+                  < abs(yMin + rowHeight * nextRowSearchDown
+                        - originalLocation.first)
+              && nextRowSearchUp < rowSet.size())) {
         if (abs(rowHeight * nextRowSearchUp - originalLocation.second)
             > CostBest) {
           nextRowSearchUp = rowSet.size();
           continue;
         }
-        inst->setLocation(originalLocation.first, rowHeight * nextRowSearchUp);
+        inst->setLocation(originalLocation.first,
+                          yMin + rowHeight * nextRowSearchUp);
         rowSet.at(nextRowSearchUp).push_back(inst);
         placeRow(rowSet.at(nextRowSearchUp));
         int cost
@@ -131,13 +133,13 @@ void SemiLegalizer::runAbacus(odb::dbBlock* block)
         rowSet.at(nextRowSearchUp).pop_back();
         nextRowSearchUp++;
       } else {
-        if (abs(rowHeight * nextRowSearchDown - originalLocation.second)
+        if (abs(yMin + rowHeight * nextRowSearchDown - originalLocation.second)
             > CostBest) {
           nextRowSearchDown = -1;
           continue;
         }
         inst->setLocation(originalLocation.first,
-                          rowHeight * nextRowSearchDown);
+                          yMin + rowHeight * nextRowSearchDown);
         rowSet.at(nextRowSearchDown).push_back(inst);
         placeRow(rowSet.at(nextRowSearchDown));
         int cost
@@ -151,7 +153,7 @@ void SemiLegalizer::runAbacus(odb::dbBlock* block)
         nextRowSearchDown--;
       }
     }
-    inst->setLocation(originalLocation.first, rowHeight * rowBest);
+    inst->setLocation(originalLocation.first, yMin + rowHeight * rowBest);
     rowSet.at(rowBest).push_back(inst);
     placeRow(rowSet.at(rowBest));
     // for debug
