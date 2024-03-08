@@ -97,71 +97,72 @@ void SemiLegalizer::runAbacus(odb::dbBlock* block)
   std::vector<instInRow> rowSet(targetBlock_->getRows().size());
   int yMin = (*targetBlock_->getRows().begin())->getBBox().yMin();
   auto rowHeight = (*targetBlock_->getRows().begin())->getBBox().dy();
-  int sizeOfInstSet = instSet.size();  // for debug
   for (auto inst : instSet) {
     int CostBest = std::numeric_limits<int>::max();
     int rowBest = 0;  // usage: rowSet.at(rowBest);
     std::pair<int, int> originalLocation
         = {inst->getLocation().x(), inst->getLocation().y()};
     auto instY = inst->getLocation().y();
-    int nextRowSearchDown = (instY - yMin) / rowHeight;
-    int nextRowSearchUp = nextRowSearchDown + 1;
-    while (nextRowSearchUp < rowSet.size() || nextRowSearchDown >= 0) {
-      std::cout << "nextRowSearchUp: " << nextRowSearchUp
-                << ", nextRowSearchDown: " << nextRowSearchDown << std::endl;
-      if (nextRowSearchDown < 0
-          || (abs(yMin + rowHeight * nextRowSearchUp - originalLocation.first)
-                  < abs(yMin + rowHeight * nextRowSearchDown
+    int nextSearchDownRow = (instY - yMin) / rowHeight;
+    int nextSearchUpRow = nextSearchDownRow + 1;
+    while (nextSearchUpRow < rowSet.size() || nextSearchDownRow >= 0) {
+      if (nextSearchDownRow < 0
+          || (abs(yMin + rowHeight * nextSearchUpRow - originalLocation.first)
+                  < abs(yMin + rowHeight * nextSearchDownRow
                         - originalLocation.first)
-              && nextRowSearchUp < rowSet.size())) {
-        if (abs(rowHeight * nextRowSearchUp - originalLocation.second)
+              && nextSearchUpRow < rowSet.size())) {
+        if (abs(rowHeight * nextSearchUpRow - originalLocation.second)
             > CostBest) {
-          nextRowSearchUp = rowSet.size();
+          nextSearchUpRow = rowSet.size();
           continue;
         }
         inst->setLocation(originalLocation.first,
-                          yMin + rowHeight * nextRowSearchUp);
-        rowSet.at(nextRowSearchUp).push_back(inst);
-        placeRow(rowSet.at(nextRowSearchUp));
+                          yMin + rowHeight * nextSearchUpRow);
+        rowSet.at(nextSearchUpRow).push_back(inst);
+        if (degreeOfExcess(rowSet.at(nextSearchUpRow)) > 0) {
+          rowSet.at(nextSearchUpRow).pop_back();
+          nextSearchUpRow++;
+          continue;
+        }
+        placeRow(rowSet.at(nextSearchUpRow));
         int cost
             = std::abs(inst->getLocation().x() - originalLocation.first)
               + std::abs(inst->getLocation().y() - originalLocation.second);
         if (cost < CostBest) {
           CostBest = cost;
-          rowBest = nextRowSearchUp;
+          rowBest = nextSearchUpRow;
         }
-        rowSet.at(nextRowSearchUp).pop_back();
-        nextRowSearchUp++;
+        rowSet.at(nextSearchUpRow).pop_back();
+        nextSearchUpRow++;
       } else {
-        if (abs(yMin + rowHeight * nextRowSearchDown - originalLocation.second)
+        if (abs(yMin + rowHeight * nextSearchDownRow - originalLocation.second)
             > CostBest) {
-          nextRowSearchDown = -1;
+          nextSearchDownRow = -1;
           continue;
         }
         inst->setLocation(originalLocation.first,
-                          yMin + rowHeight * nextRowSearchDown);
-        rowSet.at(nextRowSearchDown).push_back(inst);
-        placeRow(rowSet.at(nextRowSearchDown));
+                          yMin + rowHeight * nextSearchDownRow);
+        rowSet.at(nextSearchDownRow).push_back(inst);
+        if (degreeOfExcess(rowSet.at(nextSearchDownRow)) > 0) {
+          rowSet.at(nextSearchDownRow).pop_back();
+          nextSearchDownRow--;
+          continue;
+        }
+        placeRow(rowSet.at(nextSearchDownRow));
         int cost
             = std::abs(inst->getLocation().x() - originalLocation.first)
               + std::abs(inst->getLocation().y() - originalLocation.second);
         if (cost < CostBest) {
           CostBest = cost;
-          rowBest = nextRowSearchDown;
+          rowBest = nextSearchDownRow;
         }
-        rowSet.at(nextRowSearchDown).pop_back();
-        nextRowSearchDown--;
+        rowSet.at(nextSearchDownRow).pop_back();
+        nextSearchDownRow--;
       }
     }
     inst->setLocation(originalLocation.first, yMin + rowHeight * rowBest);
     rowSet.at(rowBest).push_back(inst);
     placeRow(rowSet.at(rowBest));
-    // for debug
-    static int count = 0;
-    count++;
-    std::cout << "round " << count << " of " << sizeOfInstSet << " ended"
-              << std::endl;
-    // end of debug
   }
 }
 void SemiLegalizer::initRows(std::vector<instInRow>* rowSet)
